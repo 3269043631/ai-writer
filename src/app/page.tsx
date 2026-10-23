@@ -1,294 +1,365 @@
-'use client'
-import { useState, useEffect, useRef } from 'react'
 
-const THEME_BLUE = '#144181'
+"use client";
 
-// 左侧文章库分类
-const LIBRARY_CATS = ['微头条', '国际', '科技', '娱乐', '历史', '军事', '体育', '财经', '美食', '旅游', '社会', '科学', '法律', '热点']
+import { useState } from "react";
 
-// 智能模板分类
-const TPL_CATS = ['全部', '社媒创作', '微头条', '公众号创作', '视频文案生成', '短视频创作', '论文助手', '私人助理', '生活辅助']
+const templates = [
+  { icon: "📖", title: "故事创作", desc: "家庭故事、情感故事、职场故事", type: "故事创作" },
+  { icon: "🔥", title: "微头条", desc: "爆款开头、情节反转、情绪共鸣", type: "微头条" },
+  { icon: "🔄", title: "文章改写", desc: "输入原文，重新组织表达", type: "文章改写" },
+  { icon: "💡", title: "原创提示词", desc: "将你的想法变成创作指令", type: "原创提示词" },
+  { icon: "📰", title: "文章创作", desc: "根据主题快速生成文章", type: "文章创作" },
+  { icon: "✨", title: "标题生成", desc: "生成吸引读者的标题", type: "标题生成" },
+];
 
-// 模板数据（全覆盖）
-const TEMPLATES = [
-  { cat: '社媒创作', title: '爆款标题生成', desc: '生成10个同类型爆款标题', icon: '📰' },
-  { cat: '社媒创作', title: '今日头条〖通用配图版〗', desc: '根据主题创作优质内容', icon: '📰' },
-  { cat: '社媒创作', title: '今日头条〖情感配图版〗', desc: '根据主题创作优质内容', icon: '📰' },
-  { cat: '社媒创作', title: '今日头条创作〖通用版〗', desc: '根据题目写文章', icon: '📰' },
-  { cat: '社媒创作', title: '今日头条创作〖简洁版〗', desc: '请输入你要创作的主题描述~', icon: '📰' },
-  { cat: '社媒创作', title: '今日头条创作〖健康养生〗', desc: '根据主题创作优质内容', icon: '📰' },
-  { cat: '社媒创作', title: '今日头条创作〖三农〗', desc: '根据主题创作内容', icon: '📰' },
-  { cat: '微头条', title: '标题生成', desc: '生成10个同类型标题', icon: '✨' },
-  { cat: '微头条', title: '微头条二创', desc: '根据原文进行二创', icon: '🔄' },
-  { cat: '微头条', title: '微头条情感内容创作', desc: '根据标题生成内容', icon: '❤️' },
-  { cat: '公众号创作', title: '生成10条优质标题', desc: '输入文章领域，生成标题', icon: '✨' },
-  { cat: '公众号创作', title: '公众号文章〖汽车〗', desc: '公众号汽车文章生成', icon: '🚗' },
-  { cat: '公众号创作', title: '公众号文章〖娱乐〗', desc: '公众号娱乐文章生成', icon: '🎬' },
-  { cat: '公众号创作', title: '公众号文章〖三农〗', desc: '公众号三农文章生成', icon: '🌾' },
-  { cat: '公众号创作', title: '公众号文章〖情感〗', desc: '公众号情感文章生成', icon: '❤️' },
-  { cat: '视频文案生成', title: '视频文案创作〖通用〗', desc: '根据标题生成视频文案', icon: '🎥' },
-  { cat: '视频文案生成', title: '视频文案创作〖科普〗', desc: '根据标题生成视频文案', icon: '🎥' },
-  { cat: '短视频创作', title: '短视频脚本', desc: '帮你进行短视频的分镜文案脚本创作', icon: '🎬' },
-  { cat: '短视频创作', title: '视频口播稿', desc: '口播稿撰写指南', icon: '🎤' },
-  { cat: '论文助手', title: '论文润色', desc: '一键完成论文润色', icon: '📝' },
-  { cat: '论文助手', title: '段落续写', desc: '论文段落补充', icon: '📝' },
-  { cat: '私人助理', title: '私人医生', desc: 'AI医生帮你分析病因', icon: '👨‍⚕️' },
-  { cat: '私人助理', title: 'AI猫娘女友', desc: '和二次元猫娘女友对话', icon: '🐱' },
-  { cat: '生活辅助', title: '菜谱制作', desc: '跟着AI学做饭', icon: '🍳' },
-  { cat: '生活辅助', title: '旅游攻略', desc: '帮您制定旅游攻略', icon: '✈️' }
-]
+export default function Home() {
+  const [page, setPage] = useState("智能模板");
+  const [type, setType] = useState("故事创作");
+  const [topic, setTopic] = useState("");
+  const [source, setSource] = useState("");
+  const [style, setStyle] = useState("真实生活风");
+  const [length, setLength] = useState("1500字");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [works, setWorks] = useState<string[]>([]);
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('home') // home, templates, library, works, profile
-
-  // 首页状态
-  const [homeType, setHomeType] = useState('content') // link, content, prompt
-  const [text, setText] = useState('')
-  const [result, setResult] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [showRes, setShowRes] = useState(false)
-  const resultRef = useRef<HTMLDivElement>(null)
-
-  // 模板状态
-  const [tplCat, setTplCat] = useState('全部')
-
-  // 文章库状态
-  const [libCat, setLibCat] = useState('微头条')
-  const [articles, setArticles] = useState<any[]>([])
-  const [fetchingNews, setFetchingNews] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<number[]>([])
-
-  // 生成文章请求
   async function generate() {
-    if (!text.trim() || loading) return
-    setResult('')
-    setLoading(true)
-    setShowRes(true)
-    try {
-      const res = await fetch('/api/write', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'article', topic: text, style: '专业', wordCount: 1000 })
-      })
-      const reader = res.body?.getReader()
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          setResult(p => p + new TextDecoder().decode(value))
-          if (resultRef.current) resultRef.current.scrollTop = resultRef.current.scrollHeight
-        }
-      }
-    } catch (e) { setResult('出错了') } finally { setLoading(false) }
-  }
-
-  // 拉取文章库数据
-  useEffect(() => {
-    if (activeTab === 'library') {
-      fetchNews()
+    if (!topic.trim() && !source.trim()) {
+      alert("请先输入创作主题或原文");
+      return;
     }
-  }, [activeTab, libCat])
 
-  async function fetchNews() {
-    setFetchingNews(true)
+    setLoading(true);
+    setResult("");
+
+    const prompt = `你是一名专业中文自媒体写作专家。
+任务类型：${type}
+创作主题：${topic || "根据提供的原文进行处理"}
+写作风格：${style}
+目标长度：${length}
+原文内容：${source}
+要求：中文输出，结构清晰，内容具体，避免空话。直接输出成品。`;
+
     try {
-      const res = await fetch('https://api.vvhan.com/api/hotlist/toutiao')
-      const json = await res.json()
-      if (json.success && json.data) {
-        const list = json.data.map((item: any, index: number) => ({
-          id: index,
-          title: libCat === '微头条' ? item.title : `【${libCat}】${item.title}`,
-          time: `2026-10-23 ${String(Math.floor(Math.random() * 23)).padStart(2, '0')}:${String(Math.floor(Math.random() * 59)).padStart(2, '0')}:00`,
-          read: Math.floor(Math.random() * 90000) + 10000,
-          comment: Math.floor(Math.random() * 80) + 1,
-          generated: Math.floor(Math.random() * 5)
-        }))
-        setArticles(list)
+      const response = await fetch("/api/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, topic, source, type, style, length }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "生成失败，请检查 API 配置");
       }
-    } catch (e) {
-      setArticles([
-        { id: 1, title: '全网热点数据加载中...', time: '2026-10-23 12:00:00', read: 99999, comment: 88, generated: 12 }
-      ])
+
+      const text =
+        data.content ||
+        data.result ||
+        data.text ||
+        data.output ||
+        data.choices?.[0]?.message?.content;
+
+      if (!text) throw new Error("接口没有返回文章内容，请检查 API 接口格式");
+      setResult(text);
+    } catch (error) {
+      setResult(
+        "暂时无法生成内容。\n\n请检查项目是否已配置 DeepSeek API 密钥，以及 /api/write 接口是否正常。\n\n详细信息：" +
+          (error instanceof Error ? error.message : "未知错误")
+      );
     } finally {
-      setFetchingNews(false)
+      setLoading(false);
     }
   }
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("复制成功");
+    } catch {
+      alert("复制失败，请长按文字手动复制");
+    }
+  }
+
+  function saveWork() {
+    if (!result) return;
+    const next = [result, ...works];
+    setWorks(next);
+    try {
+      localStorage.setItem("ai-writer-works", JSON.stringify(next));
+    } catch {}
+    alert("已保存作品");
   }
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', minHeight: '100vh', background: activeTab === 'home' ? THEME_BLUE : '#f5f5f5', fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', paddingBottom: '60px' }}>
-      
-      {/* 顶部导航 */}
-      <div style={{ padding: '15px', textAlign: 'center', fontSize: '18px', fontWeight: 'bold', background: activeTab === 'home' ? THEME_BLUE : '#fff', color: activeTab === 'home' ? '#fff' : THEME_BLUE, borderBottom: activeTab === 'home' ? 'none' : '1px solid #eee', zIndex: 10 }}>
-        {activeTab === 'home' ? 'AI 羽文' : activeTab === 'templates' ? '智能模板' : activeTab === 'library' ? '文章库' : activeTab ===auto 'works'', ? '作品管理' : white '个人中心'}
-      </div>
-
-Space      {/* 首页 */}
-      {:activeTab === 'home' && (
-        <div style={{ padding: '20px', color: '#fff' }}>
-          <div style={{ textAlign: 'center', fontSize: '18px', marginBottom: '20px' }}>文章写作新技术，自动AI去重</div>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-            {[
-              { id: 'link', title: '文章链接写作', desc: '批量写作，一键生成', icon: '🔗' },
-              { id: 'content', title: '文章内容写作', desc: '输入文字内容一键生成原创', icon: '📝' },
-              { id: 'prompt', title: '提示词创作', desc: '根据你的想法，快速创作优质原创文章', icon: '✨' }
-            ].map(t => (
-              <div key={t.id} onClick={() => setHomeType(t.id)} style={{ flex: 1, background: homeType === t.id ? THEME_BLUE : '#fff', color: homeType === t.id ? '#fff' : '#333', borderRadius: '12px', padding: '15px 10px', textAlign: 'center', cursor: 'pointer', border: homeType === t.id ? '2px solid #66b3ff' : '2px solid transparent' }}>
-                <div style={{ fontSize: '24px', marginBottom: '10px' }}>{t.icon}</div>
-                <div style={{ fontSize: '15px', fontWeight: 'bold' }}>{t.title}</div>
-                <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '5px' }}>{t.desc}</div>
+    <main className="min-h-screen bg-[#f5f7fb] pb-24 text-slate-800">
+      <header className="bg-gradient-to-r from-violet-700 to-indigo-600 px-5 pb-7 pt-7 text-white">
+        <div className="mx-auto max-w-5xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-extrabold tracking-wide">AI 羽文</div>
+              <div className="mt-1 text-xs text-violet-100">
+                智能创作 · 灵感随时生成
               </div>
-            ))}
+            </div>
+            <div className="rounded-full border border-white/30 bg-white/15 px-3 py-2 text-xs">
+              AI 创作助手
+            </div>
           </div>
-          <div style={{ background: '#fff', borderRadius: '16px', padding: '20px', color: '#333' }}>
-            <div style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '10px' }}>
-              {homeType === 'link' ? '粘贴参考链接' : homeType === 'content' ? '粘贴要写作的文章' : '告诉我你想写什么？'}
-            </div>
-            <textarea 
-              value={text} onChange={e => setText(e.target.value)}
-              placeholder={homeType === 'prompt' ? '请描述你的角色、创作背景、创作目的，让我更好的为你生成文章' : '请输入内容...'}
-              style={{ width: '100%', height: '150px', background: '#f9f9f9', border: '1px solid #eee', borderRadius: '8px', padding: '10px', fontSize: '14px', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
-            />
-            <div style={{ marginTop: '15px', border: `1px solid ${THEME_BLUE}`, borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', color: THEME_BLUE }}>
-              <span style={{ fontSize: '14px' }}>文案类型 通用版·长文 (800-1500字)</span>
-              <span>{'>'}</span>
-            </div>
-            <button onClick={generate} style={{ width: '100%', background: THEME_BLUE, color: '#fff', border: 'none', borderRadius: '8px', padding: '15px', fontSize: '16px', marginTop: '20px', cursor: 'pointer' }}>
-              生成文章
-            </button>
+
+          <div className="mt-7 rounded-2xl bg-white/10 p-4">
+            <div className="text-lg font-bold">让创作更简单</div>
+            <p className="mt-2 text-sm leading-6 text-violet-100">
+              选择智能模板，输入你的想法，快速开始创作。
+            </p>
           </div>
         </div>
-      )}
+      </header>
 
-      {/* 智能模板 */}
-      {activeTab === 'templates' && (
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: 'calc(100vh - 120px)' }}>
-          <div style={{ width: '100px', background: THEME_BLUE, overflowY: 'auto' }}>
-            {TPL_CATS.map(c => (
-              <div key={c} onClick={() => setTplCat(c)} style={{ padding: '15px 10px', fontSize: '13px', textAlign: 'center', background: tplCat === c ? '#fff' : 'transparent', color: tplCat === c ? THEME_BLUE : '#fff', fontWeight: tplCat === c ? 'bold' : 'normal', cursor: 'pointer' }}>
-                {c}
-              </div>
-            ))}
+      <div className="mx-auto max-w-5xl px-4">
+        <section className="-mt-3 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div className="text-xl font-bold text-violet-700">AI</div>
+              <div className="mt-1 text-xs text-slate-500">智能辅助创作</div>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-violet-700">多种</div>
+              <div className="mt-1 text-xs text-slate-500">创作模板</div>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-violet-700">快捷</div>
+              <div className="mt-1 text-xs text-slate-500">生成与复制</div>
+            </div>
           </div>
-          <div style={{ flex: 1, background: '#f5f5f5', padding: '10px', overflowY: 'auto' }}>
-            <input placeholder="输入标题" style={{ width: '100%', padding: '10px', borderRadius: '20px', border: 'none', marginBottom: '10px', boxSizing: 'border-box' }} />
-            {TEMPLATES.filter(t => tplCat === '全部' || t.cat === tplCat).map((t, i) => (
-              <div key={i} onClick={() => { setText(t.title); setActiveTab('home'); setHomeType('prompt'); }} style={{ background: '#fff', padding: '15px', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px', color: '#333', cursor: 'pointer' }}>
-                <div style={{ fontSize: '24px' }}>{t.icon}</div>
-                <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{t.title}</div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '3px' }}>{t.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        </section>
 
-      {/* 文章库 */}
-      {activeTab === 'library' && (
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: 'calc(100vh - 120px)' }}>
-          <div style={{ width: '90px', background: THEME_BLUE, overflowY: 'auto', color: '#fff' }}>
-            {LIBRARY_CATS.map(cat => (
-              <div key={cat} onClick={() => setLibCat(cat)} style={{ padding: '18px 10px', textAlign: 'center', fontSize: '14px', cursor: 'pointer', background: libCat === cat ? '#fff' : 'transparent', color: libCat === cat ? THEME_BLUE : '#fff', fontWeight: libCat === cat ? 'bold' : 'normal' }}>
-                {cat}
+        {page === "作品管理" ? (
+          <section className="mt-5 rounded-2xl bg-white p-4">
+            <h2 className="text-lg font-bold">作品管理</h2>
+            <p className="mt-1 text-sm text-slate-500">本次访问保存的作品</p>
+            {works.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-400">
+                暂无作品，创作完成后可以保存
               </div>
-            ))}
-          </div>
-          <div style={{ flex: 1, padding: '15px', overflowY: 'auto', paddingBottom: '100px' }}>
-            {fetchingNews ? (
-              <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>正在拉取全网实时热点...</div>
             ) : (
-              articles.map(item => (
-                <div key={item.id} style={{ background: '#fff', borderRadius: '12px', padding: '15px', marginBottom: '15px', display: 'flex', gap: '10px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#333', lineHeight: 1.4, marginBottom: '12px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {item.title}
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11px', color: '#4a90e2' }}>
-                      <div>{item.time}</div>
-                      <div style={{ textAlign: 'right' }}>阅读：{item.read}</div>
-                      <div>评论：{item.comment}</div>
-                      <div style={{ textAlign: 'right' }}>已生成：{item.generated}次</div>
-                    </div>
+              <div className="mt-4 space-y-3">
+                {works.map((work, i) => (
+                  <div key={i} className="rounded-xl border border-slate-100 p-3">
+                    <p className="whitespace-pre-wrap text-sm">{work}</p>
+                    <button
+                      onClick={() => copyText(work)}
+                      className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-700"
+                    >
+                      复制作品
+                    </button>
                   </div>
-                  <div onClick={() => toggleSelect(item.id)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: `2px solid ${THEME_BLUE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', cursor: 'pointer', background: selectedIds.includes(item.id) ? THEME_BLUE : 'transparent' }}>
-                    {selectedIds.includes(item.id) && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#fff' }} />}
+                ))}
+              </div>
+            )}
+          </section>
+        ) : page === "个人中心" ? (
+          <section className="mt-5 rounded-2xl bg-white p-5">
+            <h2 className="text-lg font-bold">个人中心</h2>
+            <div className="mt-4 rounded-xl bg-slate-50 p-4">
+              <div className="font-medium">我的创作空间</div>
+              <p className="mt-2 text-sm text-slate-500">
+                当前为基础版页面，登录、会员与额度功能需要另外接入。
+              </p>
+            </div>
+            <button
+              onClick={() => setPage("智能模板")}
+              className="mt-4 w-full rounded-xl bg-violet-600 py-3 text-white"
+            >
+              开始创作
+            </button>
+          </section>
+        ) : (
+          <>
+            <section className="mt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-bold">智能模板</h2>
+                <span className="text-xs text-slate-400">选择模板开始创作</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {templates.map((item) => (
+                  <button
+                    key={item.title}
+                    onClick={() => {
+                      setType(item.type);
+                      setPage("智能模板");
+                      document.getElementById("editor")?.scrollIntoView({
+                        behavior: "smooth",
+                      });
+                    }}
+                    className={`rounded-2xl border bg-white p-4 text-left transition ${
+                      type === item.type
+                        ? "border-violet-400 ring-1 ring-violet-200"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{item.icon}</span>
+                      <span className="font-bold">{item.title}</span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      {item.desc}
+                    </p>
+                    <div className="mt-3 text-xs font-medium text-violet-600">
+                      选择模板 →
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section id="editor" className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
+              <h2 className="text-lg font-bold">智能创作</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                填写要求，生成属于你的内容
+              </p>
+
+              <label className="mb-2 mt-5 block text-sm font-semibold">
+                创作类型
+              </label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-violet-500"
+              >
+                {templates.map((item) => (
+                  <option key={item.type} value={item.type}>
+                    {item.type}
+                  </option>
+                ))}
+              </select>
+
+              <label className="mb-2 mt-4 block text-sm font-semibold">
+                创作主题 / 要求
+              </label>
+              <textarea
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="例如：写一个拆迁家庭故事，开头有冲突，中间有反转，结尾令人感慨……"
+                rows={4}
+                className="w-full resize-y rounded-xl border border-slate-200 p-3 text-sm leading-6 outline-none focus:border-violet-500"
+              />
+
+              <label className="mb-2 mt-4 block text-sm font-semibold">
+                原文内容（改写时填写）
+              </label>
+              <textarea
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                placeholder="把需要改写或续写的原文粘贴到这里……"
+                rows={4}
+                maxLength={10000}
+                className="w-full resize-y rounded-xl border border-slate-200 p-3 text-sm leading-6 outline-none focus:border-violet-500"
+              />
+              <div className="text-right text-xs text-slate-400">
+                {source.length}/10000
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    语言风格
+                  </label>
+                  <select
+                    value={style}
+                    onChange={(e) => setStyle(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                  >
+                    <option>真实生活风</option>
+                    <option>情感共鸣风</option>
+                    <option>悬念反转风</option>
+                    <option>幽默轻松风</option>
+                    <option>专业正式风</option>
+                    <option>口语化表达</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    目标长度
+                  </label>
+                  <select
+                    value={length}
+                    onChange={(e) => setLength(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                  >
+                    <option>300字</option>
+                    <option>800字</option>
+                    <option>1500字</option>
+                    <option>2500字</option>
+                    <option>3000字</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={generate}
+                disabled={loading}
+                className="mt-5 w-full rounded-xl bg-gradient-to-r from-violet-700 to-indigo-600 py-3.5 font-bold text-white shadow-md disabled:opacity-60"
+              >
+                {loading ? "正在生成，请稍候…" : "✨ 开始生成"}
+              </button>
+
+              {result && (
+                <div className="mt-6 rounded-xl border border-violet-100 bg-violet-50/50 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-bold">生成结果</h3>
+                    <span className="text-xs text-slate-400">
+                      {result.length} 字符
+                    </span>
+                  </div>
+                  <textarea
+                    value={result}
+                    onChange={(e) => setResult(e.target.value)}
+                    rows={12}
+                    className="mt-3 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7"
+                  />
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => copyText(result)}
+                      className="rounded-xl border border-violet-200 bg-white py-3 text-sm font-semibold text-violet-700"
+                    >
+                      复制内容
+                    </button>
+                    <button
+                      onClick={saveWork}
+                      className="rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white"
+                    >
+                      保存作品
+                    </button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-          <div style={{ position: 'fixed', bottom: '60px', left: '50%', transform: 'translateX(-50%)', zIndex: 20 }}>
-            <div onClick={() => { if (selectedIds.length === 0) return alert('请先选择文章'); alert(`已确认选择 ${selectedIds.length} 篇热点文章`); }} style={{ background: THEME_BLUE, color: '#fff', padding: '12px 40px', borderRadius: '24px', fontSize: '15px', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(20,65,129,0.3)', cursor: 'pointer' }}>
-              确认选择 ({selectedIds.length})
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 作品管理 */}
-      {activeTab === 'works' && (
-        <div style={{ padding: '15px' }}>
-          <input placeholder="输入标题" style={{ width: '100%', padding: '10px', borderRadius: '20px', border: 'none', marginBottom: '15px', boxSizing: 'border-box' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ background: '#fff', color: '#333', padding: '8px 15px', borderRadius: '4px', fontSize: '14px' }}>文章来源 ⌄</div>
-            <div style={{ background: '#1a73e8', color: '#fff', padding: '8px 15px', borderRadius: '4px', fontSize: '14px' }}>批量管理</div>
-          </div>
-          <div style={{ textAlign: 'center', marginTop: '50px', color: '#889', fontSize: '14px' }}>暂无作品数据</div>
-        </div>
-      )}
-
-      {/* 个人中心 */}
-      {activeTab === 'profile' && (
-        <div style={{ padding: '15px' }}>
-          <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', textAlign: 'center', marginBottom: '15px' }}>
-            <div style={{ fontSize: '40px', marginBottom: '10px' }}>👤</div>
-            <div style={{ fontWeight: 'bold', fontSize: '18px' }}>未登录</div>
-            <div style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>点击登录，享更多特权</div>
-          </div>
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '15px', color: '#333' }}>
-            {['关于我们', '用户协议', '隐私政策', '联系客服'].map(item => (
-              <div key={item} style={{ padding: '15px 0', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
-                <span>{item}</span>
-                <span>{'>'}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 底部导航 */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', display: 'flex', justifyContent: 'space-around', padding: '10px 0', maxWidth: '600px', margin: '0 auto', zIndex: 30, borderTop: '1px solid #eee' }}>
-        {[
-          { id: 'home', label: '首页', icon: '🏠' },
-          { id: 'templates', label: '智能模板', icon: '🎛️' },
-          { id: 'library', label: '文章库', icon: '📖' },
-          { id: 'works', label: '作品管理', icon: '📁' },
-          { id: 'profile', label: '个人中心', icon: '👤' }
-        ].map(tab => (
-          <div key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: activeTab === tab.id ? THEME_BLUE : '#999', cursor: 'pointer' }}>
-            <div style={{ fontSize: '20px' }}>{tab.icon}</div>
-            <div style={{ fontSize: '11px', marginTop: '3px' }}>{tab.label}</div>
-          </div>
-        ))}
+              )}
+            </section>
+          </>
+        )}
       </div>
 
-      {/* 生成结果弹窗 */}
-      {showRes && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#fff', color: '#333', zIndex: 100, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee' }}>
-            <span style={{ fontWeight: 'bold' }}>生成结果</span>
-            <span onClick={() => setShowRes(false)} style={{ color: THEME_BLUE, cursor: 'pointer' }}>完成</span>
-          </div>
-          <div ref={resultRef} style={{ flex: 1, padding: '20px', overflowY: ' 'pre-wrap', lineHeight: 1.8, fontSize: '15px' }}>
-            {result || (loading && '正在奋笔疾书...')}
-          </div>
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <div className="mx-auto grid max-w-5xl grid-cols-4">
+          {navItems.map((item, i) => (
+            <button
+              key={item}
+              onClick={() => setPage(item)}
+              className={`flex flex-col items-center gap-1 py-3 text-xs ${
+                page === item
+                  ? "font-bold text-violet-700"
+                  : "text-slate-500"
+              }`}
+            >
+              <span className="text-lg">
+                {["⌂", "▦", "▤", "♙"][i]}
+              </span>
+              {item}
+            </button>
+          ))}
         </div>
-      )}
-    </div>
-  )
+      </nav>
+    </main>
+  );
 }

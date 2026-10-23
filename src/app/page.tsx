@@ -3,27 +3,49 @@
 
 import { useState } from "react";
 
-const templates = [
-  { icon: "📖", title: "故事创作", desc: "家庭故事、情感故事、职场故事", type: "故事创作" },
-  { icon: "🔥", title: "微头条", desc: "爆款开头、情节反转、情绪共鸣", type: "微头条" },
+type Template = {
+  icon: string;
+  title: string;
+  desc: string;
+  type: string;
+};
+
+const navItems: string[] = ["首页", "智能模板", "作品管理", "个人中心"];
+
+const templates: Template[] = [
+  { icon: "📖", title: "故事创作", desc: "家庭、情感、职场、民间故事", type: "故事创作" },
+  { icon: "🔥", title: "微头条", desc: "吸引人的开头与情节反转", type: "微头条" },
   { icon: "🔄", title: "文章改写", desc: "输入原文，重新组织表达", type: "文章改写" },
-  { icon: "💡", title: "原创提示词", desc: "将你的想法变成创作指令", type: "原创提示词" },
-  { icon: "📰", title: "文章创作", desc: "根据主题快速生成文章", type: "文章创作" },
+  { icon: "💡", title: "原创提示词", desc: "把创作思路变成完整指令", type: "原创提示词" },
+  { icon: "📰", title: "文章创作", desc: "根据主题快速创作文章", type: "文章创作" },
   { icon: "✨", title: "标题生成", desc: "生成吸引读者的标题", type: "标题生成" },
 ];
 
+type ApiResult = {
+  content?: string;
+  result?: string;
+  text?: string;
+  output?: string;
+  error?: string;
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+};
+
 export default function Home() {
-  const [page, setPage] = useState("智能模板");
-  const [type, setType] = useState("故事创作");
-  const [topic, setTopic] = useState("");
-  const [source, setSource] = useState("");
-  const [style, setStyle] = useState("真实生活风");
-  const [length, setLength] = useState("1500字");
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState<string>("智能模板");
+  const [type, setType] = useState<string>("故事创作");
+  const [topic, setTopic] = useState<string>("");
+  const [source, setSource] = useState<string>("");
+  const [style, setStyle] = useState<string>("真实生活风");
+  const [length, setLength] = useState<string>("1500字");
+  const [result, setResult] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
   const [works, setWorks] = useState<string[]>([]);
 
-  async function generate() {
+  async function generate(): Promise<void> {
     if (!topic.trim() && !source.trim()) {
       alert("请先输入创作主题或原文");
       return;
@@ -32,83 +54,105 @@ export default function Home() {
     setLoading(true);
     setResult("");
 
-    const prompt = `你是一名专业中文自媒体写作专家。
-任务类型：${type}
-创作主题：${topic || "根据提供的原文进行处理"}
-写作风格：${style}
-目标长度：${length}
-原文内容：${source}
-要求：中文输出，结构清晰，内容具体，避免空话。直接输出成品。`;
+    const prompt = [
+      "你是一名专业的中文自媒体写作专家。",
+      `任务类型：${type}`,
+      `创作主题：${topic || "根据提供的原文进行处理"}`,
+      `语言风格：${style}`,
+      `目标长度：${length}`,
+      `原文内容：${source}`,
+      "请用中文直接输出完整成品，内容具体，结构清晰。",
+    ].join("\n");
 
     try {
       const response = await fetch("/api/write", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, topic, source, type, style, length }),
+        body: JSON.stringify({
+          prompt,
+          topic,
+          source,
+          type,
+          style,
+          length,
+        }),
       });
 
-      const data = await response.json();
+      const data: ApiResult = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "生成失败，请检查 API 配置");
+        throw new Error(data.error || `请求失败：${response.status}`);
       }
 
-      const text =
+      const content =
         data.content ||
         data.result ||
         data.text ||
         data.output ||
-        data.choices?.[0]?.message?.content;
+        data.choices?.[0]?.message?.content ||
+        "";
 
-      if (!text) throw new Error("接口没有返回文章内容，请检查 API 接口格式");
-      setResult(text);
-    } catch (error) {
+      if (!content) {
+        throw new Error("接口没有返回文章内容，请检查 /api/write 接口");
+      }
+
+      setResult(content);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "未知错误";
       setResult(
-        "暂时无法生成内容。\n\n请检查项目是否已配置 DeepSeek API 密钥，以及 /api/write 接口是否正常。\n\n详细信息：" +
-          (error instanceof Error ? error.message : "未知错误")
+        `生成失败：${message}\n\n请检查 DeepSeek API 密钥和 /api/write 接口配置。`
       );
     } finally {
       setLoading(false);
     }
   }
 
-  async function copyText(text: string) {
+  async function copyText(text: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(text);
       alert("复制成功");
     } catch {
-      alert("复制失败，请长按文字手动复制");
+      alert("自动复制失败，请长按文字手动复制");
     }
   }
 
-  function saveWork() {
-    if (!result) return;
+  function saveWork(): void {
+    if (!result.trim()) {
+      alert("没有可保存的内容");
+      return;
+    }
+
     const next = [result, ...works];
     setWorks(next);
+
     try {
       localStorage.setItem("ai-writer-works", JSON.stringify(next));
-    } catch {}
-    alert("已保存作品");
+    } catch {
+      // 即使浏览器存储不可用，本次页面仍保留作品
+    }
+
+    alert("作品已保存");
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] pb-24 text-slate-800">
-      <header className="bg-gradient-to-r from-violet-700 to-indigo-600 px-5 pb-7 pt-7 text-white">
+    <main className="min-h-screen bg-slate-50 pb-24 text-slate-800">
+      <header className="bg-gradient-to-r from-violet-700 to-indigo-600 px-5 pb-8 pt-7 text-white">
         <div className="mx-auto max-w-5xl">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-extrabold tracking-wide">AI 羽文</div>
-              <div className="mt-1 text-xs text-violet-100">
+              <h1 className="text-2xl font-extrabold">AI 羽文</h1>
+              <p className="mt-1 text-xs text-violet-100">
                 智能创作 · 灵感随时生成
-              </div>
+              </p>
             </div>
-            <div className="rounded-full border border-white/30 bg-white/15 px-3 py-2 text-xs">
+            <span className="rounded-full bg-white/15 px-3 py-2 text-xs">
               AI 创作助手
-            </div>
+            </span>
           </div>
 
           <div className="mt-7 rounded-2xl bg-white/10 p-4">
-            <div className="text-lg font-bold">让创作更简单</div>
+            <h2 className="text-lg font-bold">让创作更简单</h2>
             <p className="mt-2 text-sm leading-6 text-violet-100">
               选择智能模板，输入你的想法，快速开始创作。
             </p>
@@ -117,56 +161,53 @@ export default function Home() {
       </header>
 
       <div className="mx-auto max-w-5xl px-4">
-        <section className="-mt-3 rounded-2xl bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <div className="text-xl font-bold text-violet-700">AI</div>
-              <div className="mt-1 text-xs text-slate-500">智能辅助创作</div>
-            </div>
-            <div>
-              <div className="text-xl font-bold text-violet-700">多种</div>
-              <div className="mt-1 text-xs text-slate-500">创作模板</div>
-            </div>
-            <div>
-              <div className="text-xl font-bold text-violet-700">快捷</div>
-              <div className="mt-1 text-xs text-slate-500">生成与复制</div>
-            </div>
+        <section className="-mt-3 grid grid-cols-3 rounded-2xl bg-white p-4 text-center shadow-sm">
+          <div>
+            <div className="text-xl font-bold text-violet-700">AI</div>
+            <div className="mt-1 text-xs text-slate-500">智能辅助</div>
+          </div>
+          <div>
+            <div className="text-xl font-bold text-violet-700">多种</div>
+            <div className="mt-1 text-xs text-slate-500">创作模板</div>
+          </div>
+          <div>
+            <div className="text-xl font-bold text-violet-700">快捷</div>
+            <div className="mt-1 text-xs text-slate-500">生成与复制</div>
           </div>
         </section>
 
         {page === "作品管理" ? (
-          <section className="mt-5 rounded-2xl bg-white p-4">
+          <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm">
             <h2 className="text-lg font-bold">作品管理</h2>
-            <p className="mt-1 text-sm text-slate-500">本次访问保存的作品</p>
             {works.length === 0 ? (
-              <div className="py-12 text-center text-sm text-slate-400">
+              <p className="py-12 text-center text-sm text-slate-400">
                 暂无作品，创作完成后可以保存
-              </div>
+              </p>
             ) : (
               <div className="mt-4 space-y-3">
-                {works.map((work, i) => (
-                  <div key={i} className="rounded-xl border border-slate-100 p-3">
+                {works.map((work: string, index: number) => (
+                  <article
+                    key={`${index}-${work.slice(0, 16)}`}
+                    className="rounded-xl border border-slate-100 p-3"
+                  >
                     <p className="whitespace-pre-wrap text-sm">{work}</p>
                     <button
-                      onClick={() => copyText(work)}
+                      onClick={() => void copyText(work)}
                       className="mt-3 rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-700"
                     >
                       复制作品
                     </button>
-                  </div>
+                  </article>
                 ))}
               </div>
             )}
           </section>
         ) : page === "个人中心" ? (
-          <section className="mt-5 rounded-2xl bg-white p-5">
+          <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm">
             <h2 className="text-lg font-bold">个人中心</h2>
-            <div className="mt-4 rounded-xl bg-slate-50 p-4">
-              <div className="font-medium">我的创作空间</div>
-              <p className="mt-2 text-sm text-slate-500">
-                当前为基础版页面，登录、会员与额度功能需要另外接入。
-              </p>
-            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              欢迎使用 AI 羽文。登录、会员和额度功能需要另外接入。
+            </p>
             <button
               onClick={() => setPage("智能模板")}
               className="mt-4 w-full rounded-xl bg-violet-600 py-3 text-white"
@@ -179,21 +220,17 @@ export default function Home() {
             <section className="mt-6">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-bold">智能模板</h2>
-                <span className="text-xs text-slate-400">选择模板开始创作</span>
+                <span className="text-xs text-slate-400">
+                  选择模板开始创作
+                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {templates.map((item) => (
+                {templates.map((item: Template) => (
                   <button
-                    key={item.title}
-                    onClick={() => {
-                      setType(item.type);
-                      setPage("智能模板");
-                      document.getElementById("editor")?.scrollIntoView({
-                        behavior: "smooth",
-                      });
-                    }}
-                    className={`rounded-2xl border bg-white p-4 text-left transition ${
+                    key={item.type}
+                    onClick={() => setType(item.type)}
+                    className={`rounded-2xl border bg-white p-4 text-left ${
                       type === item.type
                         ? "border-violet-400 ring-1 ring-violet-200"
                         : "border-transparent"
@@ -214,7 +251,7 @@ export default function Home() {
               </div>
             </section>
 
-            <section id="editor" className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
+            <section className="mt-6 rounded-2xl bg-white p-4 shadow-sm">
               <h2 className="text-lg font-bold">智能创作</h2>
               <p className="mt-1 text-sm text-slate-500">
                 填写要求，生成属于你的内容
@@ -225,10 +262,10 @@ export default function Home() {
               </label>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-violet-500"
+                onChange={(event) => setType(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
               >
-                {templates.map((item) => (
+                {templates.map((item: Template) => (
                   <option key={item.type} value={item.type}>
                     {item.type}
                   </option>
@@ -240,10 +277,10 @@ export default function Home() {
               </label>
               <textarea
                 value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="例如：写一个拆迁家庭故事，开头有冲突，中间有反转，结尾令人感慨……"
+                onChange={(event) => setTopic(event.target.value)}
+                placeholder="例如：写一个家庭故事，开头有冲突，中间有反转，结尾令人感慨……"
                 rows={4}
-                className="w-full resize-y rounded-xl border border-slate-200 p-3 text-sm leading-6 outline-none focus:border-violet-500"
+                className="w-full rounded-xl border border-slate-200 p-3 text-sm leading-6"
               />
 
               <label className="mb-2 mt-4 block text-sm font-semibold">
@@ -251,11 +288,11 @@ export default function Home() {
               </label>
               <textarea
                 value={source}
-                onChange={(e) => setSource(e.target.value)}
-                placeholder="把需要改写或续写的原文粘贴到这里……"
+                onChange={(event) => setSource(event.target.value)}
+                placeholder="粘贴需要改写或续写的原文……"
                 rows={4}
                 maxLength={10000}
-                className="w-full resize-y rounded-xl border border-slate-200 p-3 text-sm leading-6 outline-none focus:border-violet-500"
+                className="w-full rounded-xl border border-slate-200 p-3 text-sm leading-6"
               />
               <div className="text-right text-xs text-slate-400">
                 {source.length}/10000
@@ -268,7 +305,7 @@ export default function Home() {
                   </label>
                   <select
                     value={style}
-                    onChange={(e) => setStyle(e.target.value)}
+                    onChange={(event) => setStyle(event.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
                   >
                     <option>真实生活风</option>
@@ -279,13 +316,14 @@ export default function Home() {
                     <option>口语化表达</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="mb-2 block text-sm font-semibold">
                     目标长度
                   </label>
                   <select
                     value={length}
-                    onChange={(e) => setLength(e.target.value)}
+                    onChange={(event) => setLength(event.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
                   >
                     <option>300字</option>
@@ -298,30 +336,25 @@ export default function Home() {
               </div>
 
               <button
-                onClick={generate}
+                onClick={() => void generate()}
                 disabled={loading}
-                className="mt-5 w-full rounded-xl bg-gradient-to-r from-violet-700 to-indigo-600 py-3.5 font-bold text-white shadow-md disabled:opacity-60"
+                className="mt-5 w-full rounded-xl bg-gradient-to-r from-violet-700 to-indigo-600 py-3.5 font-bold text-white disabled:opacity-60"
               >
                 {loading ? "正在生成，请稍候…" : "✨ 开始生成"}
               </button>
 
               {result && (
                 <div className="mt-6 rounded-xl border border-violet-100 bg-violet-50/50 p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-bold">生成结果</h3>
-                    <span className="text-xs text-slate-400">
-                      {result.length} 字符
-                    </span>
-                  </div>
+                  <h3 className="font-bold">生成结果</h3>
                   <textarea
                     value={result}
-                    onChange={(e) => setResult(e.target.value)}
+                    onChange={(event) => setResult(event.target.value)}
                     rows={12}
                     className="mt-3 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm leading-7"
                   />
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => copyText(result)}
+                      onClick={() => void copyText(result)}
                       className="rounded-xl border border-violet-200 bg-white py-3 text-sm font-semibold text-violet-700"
                     >
                       复制内容
@@ -342,7 +375,7 @@ export default function Home() {
 
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto grid max-w-5xl grid-cols-4">
-          {navItems.map((item, i) => (
+          {navItems.map((item: string, index: number) => (
             <button
               key={item}
               onClick={() => setPage(item)}
@@ -353,7 +386,7 @@ export default function Home() {
               }`}
             >
               <span className="text-lg">
-                {["⌂", "▦", "▤", "♙"][i]}
+                {["⌂", "▦", "▤", "♙"][index]}
               </span>
               {item}
             </button>
